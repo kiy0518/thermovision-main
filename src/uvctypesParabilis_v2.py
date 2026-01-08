@@ -1,5 +1,6 @@
 from ctypes import *
 import ctypes
+import os
 import platform
 import gc
 
@@ -7,7 +8,13 @@ try:
   if platform.system() == 'Darwin':
     libuvc = cdll.LoadLibrary("libuvc.dylib")
   elif platform.system() == 'Linux':
-    libuvc = cdll.LoadLibrary("libuvc.so")
+    # Try loading from the script's directory first
+    script_dir = os.path.dirname(os.path.abspath(__file__))
+    lib_path = os.path.join(script_dir, "libuvc.so")
+    if os.path.exists(lib_path):
+      libuvc = cdll.LoadLibrary(lib_path)
+    else:
+      libuvc = cdll.LoadLibrary("libuvc.so")
   else:
     libuvc = cdll.LoadLibrary("libuvc")
 except OSError:

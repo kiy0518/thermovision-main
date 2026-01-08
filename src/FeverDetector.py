@@ -23,7 +23,7 @@ from subprocess import call
 
 print('Loaded Packages and Starting IR Data...')
 
-qtCreatorFile = "fever_detector.ui"  # Enter file here.
+qtCreatorFile = os.path.join(os.path.dirname(os.path.abspath(__file__)), "fever_detector.ui")
 postScriptFileName = "PostProcessIR_v11.py"
 
 Ui_MainWindow, QtBaseClass = uic.loadUiType(qtCreatorFile)
@@ -185,13 +185,12 @@ def startStream():
       print("current settings")
       print_shutter_info(devh)
 
-    except:
-      #libuvc.uvc_unref_device(dev)
-      print('Failed to Open Device')
-  except:
-    #libuvc.uvc_exit(ctx)
-    print('Failed to Find Device')
-    exit(1)
+    except Exception as e:
+      print(f'Failed to Open Device: {e}')
+      sys.exit(1)
+  except Exception as e:
+    print(f'Failed to Find Device: {e}')
+    sys.exit(1)
 
 toggleUnitState = 'C'
 
@@ -261,6 +260,10 @@ def getFrame():
     if camState == 'recording':
         startRec.hdf5_file.create_dataset(('image'+str(tiff_frame)), data=data)
         tiff_frame += 1
+    
+    # Apply median blur to remove dead pixels/noise
+    data = cv2.medianBlur(data, 3)
+
     #Cannot you cv2.resize on raspberry pi 3b+. Not enough processing power.
     data = cv2.resize(data[:,:], (640, 480))
     minVal, maxVal, minLoc, maxLoc = cv2.minMaxLoc(data)
@@ -522,14 +525,18 @@ class App(QMainWindow, Ui_MainWindow):
     				self.th.start()
     				thread = "active"
     				print('Starting Thread')
-    			except:
-    				print('Failed!!!!')
-    				exit(1)
+    			except Exception as e:
+    				print(f'Failed!!!! {e}')
+    				sys.exit(1)
     		else:
     			print('Already Started Camera')
-    	except:
+    	except Exception as e:
+    		print(f"Outer Exception: {e}")
+    		# Only show message box if it's not a SystemExit/exit(1)
+    		if isinstance(e, SystemExit):
+    			raise
     		msgBox = QMessageBox()
-    		reply = msgBox.question(self, 'Message', "Error Starting Camera - Plug or Re-Plug Camera into Computer, Wait at Least 10 Seconds, then Click Ok and Try Again.", QMessageBox.Ok)
+    		reply = msgBox.question(self, 'Message', f"Error Starting Camera: {e}", QMessageBox.Ok)
     		print('Message Box Displayed')
     		if reply == QMessageBox.Ok:
     			print('Ok Clicked')
